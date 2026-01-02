@@ -5,20 +5,15 @@ const cors = require("cors");
 const app = express();
 const PORT = 5000;
 
-/* ---------- MIDDLEWARE ---------- */
 app.use(cors());
 app.use(express.json());
 
-/* ---------- DATABASE ---------- */
 const db = new sqlite3.Database("./database.db", (err) => {
-  if (err) {
-    console.error("Database connection error:", err.message);
-  } else {
-    console.log("Connected to SQLite database");
-  }
+  if (err) console.error(err.message);
+  else console.log("Connected to SQLite database");
 });
 
-/* ---------- CREATE TABLES ---------- */
+/* ---------- TABLES ---------- */
 db.serialize(() => {
   db.run(`
     CREATE TABLE IF NOT EXISTS tasks (
@@ -40,157 +35,116 @@ db.serialize(() => {
   db.run(`
     CREATE TABLE IF NOT EXISTS activity (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      type TEXT,
+      message TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
 });
 
-/* ---------- TEST ROUTE ---------- */
+/* ---------- ROOT ---------- */
 app.get("/", (req, res) => {
   res.json({ message: "OmniDesk Pro backend running" });
 });
 
-/* ---------- TASK ROUTES ---------- */
-
-// Get all tasks
+/* ---------- TASKS ---------- */
 app.get("/api/tasks", (req, res) => {
-  db.all(
-    "SELECT * FROM tasks ORDER BY created_at DESC",
-    [],
-    (err, rows) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json(rows);
-    }
-  );
+  db.all("SELECT * FROM tasks ORDER BY created_at DESC", [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
 });
 
-// Create task
 app.post("/api/tasks", (req, res) => {
   const { title } = req.body;
-  if (!title)
-    return res.status(400).json({ error: "Title is required" });
+  if (!title) return res.status(400).json({ error: "Title required" });
 
-  db.run(
-    "INSERT INTO tasks (title) VALUES (?)",
-    [title],
-    function (err) {
-      if (err) return res.status(500).json({ error: err.message });
-
-      db.run("INSERT INTO activity (type) VALUES (?)", ["task_created"]);
-
-      res.json({
-        id: this.lastID,
-        title,
-        completed: 0,
-      });
-    }
-  );
-});
-
-// Complete task
-app.put("/api/tasks/:id", (req, res) => {
-  db.run(
-    "UPDATE tasks SET completed = 1 WHERE id = ?",
-    [req.params.id],
-    function (err) {
-      if (err) return res.status(500).json({ error: err.message });
-
-      db.run("INSERT INTO activity (type) VALUES (?)", ["task_completed"]);
-      res.json({ success: true });
-    }
-  );
-});
-
-/* ---------- NOTES ROUTES ---------- */
-
-// Get all notes
-app.get("/api/notes", (req, res) => {
-  db.all(
-    "SELECT * FROM notes ORDER BY created_at DESC",
-    [],
-    (err, rows) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json(rows);
-    }
-  );
-});
-
-// Create note
-app.post("/api/notes", (req, res) => {
-  const { content } = req.body;
-  if (!content)
-    return res.status(400).json({ error: "Content is required" });
-
-  db.run(
-    "INSERT INTO notes (content) VALUES (?)",
-    [content],
-    function (err) {
-      if (err) return res.status(500).json({ error: err.message });
-
-      db.run("INSERT INTO activity (type) VALUES (?)", ["note_created"]);
-
-      res.json({
-        id: this.lastID,
-        content,
-      });
-    }
-  );
-});
-
-/* ---------- STATS ROUTE ---------- */
-app.get("/api/stats", (req, res) => {
-  const stats = {};
-
-  db.get("SELECT COUNT(*) as total FROM tasks", [], (err, row) => {
+  db.run("INSERT INTO tasks (title) VALUES (?)", [title], function (err) {
     if (err) return res.status(500).json({ error: err.message });
-    stats.totalTasks = row.total;
 
-    db.get(
-      "SELECT COUNT(*) as completed FROM tasks WHERE completed = 1",
-      [],
-      (err, row) => {
-        if (err) return res.status(500).json({ error: err.message });
-        stats.completedTasks = row.completed;
+    db.run("INSERT INTO activity (message) VALUES (?)", [
+      `Task created: "${title}"`,
+    ]);
 
-        stats.completionRate =
-          stats.totalTasks === 0
-            ? 0
-            : Math.round(
-                (stats.completedTasks / stats.totalTasks) * 100
-              );
+    res.json({ id: this.lastID, title, completed: 0 });
+  });
+});
 
-        db.get(
-          "SELECT COUNT(*) as notes FROM notes",
-          [],
-          (err, row) => {
-            if (err) return res.status(500).json({ error: err.message });
-            stats.notesCount = row.notes;
+app.put("/api/tasks/:id", (req, res) => {
+  db.get("SELECT title FROM tasks WHERE id = ?", [req.params.id], (err, row) => {
+    if (!row) return res.json({ success: false });
 
-            db.all(
-              `
-              SELECT DATE(created_at) as date, COUNT(*) as count
-              FROM tasks
-              GROUP BY DATE(created_at)
-              ORDER BY date
-              `,
-              [],
-              (err, rows) => {
-                if (err)
-                  return res.status(500).json({ error: err.message });
-
-                stats.tasksPerDay = rows;
-                res.json(stats);
-              }
-            );
-          }
-        );
+    db.run(
+      "UPDATE tasks SET completed = 1 WHERE id = ?",
+      [req.params.id],
+      () => {
+        db.run("INSERT INTO activity (message) VALUES (?)", [
+          `Task completed: "${row.title}"`,
+        ]);
+        res.json({ success: true });
       }
     );
   });
 });
 
-/* ---------- START SERVER ---------- */
+/* ---------- NOTES ---------- */
+app.get("/api/notes", (req, res) => {
+  db.all("SELECT * FROM notes ORDER BY created_at DESC", [], (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(rows);
+  });
+});
+
+app.post("/api/notes", (req, res) => {
+  const { content } = req.body;
+  if (!content) return res.status(400).json({ error: "Content required" });
+
+  db.run("INSERT INTO notes (content) VALUES (?)", [content], function () {
+    db.run("INSERT INTO activity (message) VALUES (?)", [
+      "Note created",
+    ]);
+    res.json({ success: true });
+  });
+});
+
+/* ---------- STATS ---------- */
+app.get("/api/stats", (req, res) => {
+  const stats = {};
+
+  db.get("SELECT COUNT(*) total FROM tasks", [], (_, r1) => {
+    stats.totalTasks = r1.total;
+
+    db.get(
+      "SELECT COUNT(*) completed FROM tasks WHERE completed = 1",
+      [],
+      (_, r2) => {
+        stats.completedTasks = r2.completed;
+        stats.completionRate =
+          stats.totalTasks === 0
+            ? 0
+            : Math.round((r2.completed / stats.totalTasks) * 100);
+
+        db.get("SELECT COUNT(*) notes FROM notes", [], (_, r3) => {
+          stats.notesCount = r3.notes;
+          res.json(stats);
+        });
+      }
+    );
+  });
+});
+
+/* ---------- ACTIVITY ---------- */
+app.get("/api/activity", (req, res) => {
+  db.all(
+    "SELECT * FROM activity ORDER BY created_at DESC LIMIT 10",
+    [],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(rows);
+    }
+  );
+});
+
+/* ---------- START ---------- */
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
