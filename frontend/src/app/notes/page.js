@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
+const API_BASE = "https://omnidesk-backend-n38q.onrender.com";
+
 export default function NotesPage() {
   const [notes, setNotes] = useState([]);
   const [newNote, setNewNote] = useState("");
 
   const fetchNotes = async () => {
-    const res = await fetch("http://localhost:5000/api/notes");
+    const res = await fetch(`${API_BASE}/api/notes`);
     const data = await res.json();
     setNotes(data);
   };
@@ -20,7 +22,7 @@ export default function NotesPage() {
   const addNote = async () => {
     if (!newNote.trim()) return;
 
-    await fetch("http://localhost:5000/api/notes", {
+    await fetch(`${API_BASE}/api/notes`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content: newNote }),
@@ -32,7 +34,6 @@ export default function NotesPage() {
 
   return (
     <main style={{ padding: "40px", fontFamily: "sans-serif" }}>
-
       <h1>Notes</h1>
 
       <section style={{ marginTop: "20px" }}>
