@@ -63,10 +63,10 @@ OmniDesk Pro provides task management, note-taking, and real-time analytics powe
 cd backend
 npm install
 node server.js
-
+```
 
 Runs on http://localhost:5000
----
+-----
 
 
 ### Frontend
@@ -74,15 +74,13 @@ Runs on http://localhost:5000
 d frontend
 npm install
 npm run dev
-
+```
 
 Runs on http://localhost:3000
+-----
 
-
----
 
 ## 📸 3️⃣
-
 1. Dashboard page
 2. Notes page
 
