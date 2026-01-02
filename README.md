@@ -65,7 +65,7 @@ npm install
 node server.js
 ```
 
-Runs on http://localhost:5000
+Runs on (https://omnidesk-backend-n38q.onrender.com)
 -----
 
 
@@ -76,13 +76,12 @@ npm install
 npm run dev
 ```
 
-Runs on http://localhost:3000
+Runs on https://omnidesk-pro.vercel.app/dashboard
 -----
 
 
 ## 📸 3️⃣
-1. Dashboard page
-2. Notes page
+
 
 
 ```md
