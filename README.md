@@ -77,12 +77,10 @@ npm run dev
 ```
 
 Runs on http://localhost:3000
+-----
 
-
----
 
 ## 📸 3️⃣
-
 1. Dashboard page
 2. Notes page
 
